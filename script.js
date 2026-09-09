@@ -56,8 +56,9 @@ function setupEventListeners() {
   document.getElementById('btn-add-link-item').addEventListener('click', addLinkToForm);
 }
 
-// --- SAUVEGARDE EN LOCALSTORAGE (ADAPTÉ POUR GITHUB PAGES) ---
+// --- SAUVEGARDE EN LOCALSTORAGE ---
 async function getSubjectData(subjectName) {
+  if (!subjectName) return { name: '', courses: [], methods: [], dictionary: [] };
   const rawData = localStorage.getItem(`subject_${subjectName}`);
   if (rawData) {
     try {
@@ -70,6 +71,7 @@ async function getSubjectData(subjectName) {
 }
 
 async function saveSubjectData(subjectName, data) {
+  if (!subjectName) return;
   localStorage.setItem(`subject_${subjectName}`, JSON.stringify(data));
 }
 
@@ -91,12 +93,13 @@ async function loadSubjectNavigation() {
   const nav = document.getElementById('subject-nav');
   nav.innerHTML = '';
   
-  // Récupération de la liste des matières depuis le localStorage
+  // Récupération sécurisée de la liste des matières
   const subjects = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    if (key.startsWith('subject_')) {
-      subjects.push(key.replace('subject_', ''));
+    if (key && key.startsWith('subject_')) {
+      const subName = key.replace('subject_', '');
+      if (subName) subjects.push(subName);
     }
   }
 
@@ -180,6 +183,7 @@ function removeFormLink(idx) {
 
 // --- COURS ---
 function resetAndShowCourseForm() {
+  if (!currentSubject) return alert("Veuillez d'abord sélectionner ou créer une matière.");
   editingCourseId = null;
   currentCourseLinks = [];
   document.getElementById('form-course-title').textContent = "Ajouter un cours";
@@ -203,43 +207,51 @@ function fileToBase64(file) {
 }
 
 async function saveCourse() {
+  if (!currentSubject) return alert("Sélectionnez d'abord une matière.");
+
   const titleInput = document.getElementById('course-title-input');
   const editor = document.getElementById('editor-content');
 
-  if (!titleInput.value.trim() || !editor.innerHTML.trim()) return alert("Remplissez le titre et le contenu.");
+  const title = titleInput.value.trim();
+  const htmlContent = editor.innerHTML.trim();
+
+  if (!title || !htmlContent) return alert("Remplissez le titre et le contenu du cours.");
 
   const data = await getSubjectData(currentSubject);
+  if (!data.courses) data.courses = [];
 
   const imageInput = document.getElementById('image-input');
   const pdfInput = document.getElementById('pdf-input');
   const audioInput = document.getElementById('audio-input');
   const videoInput = document.getElementById('video-input');
 
-  let imageData = imageInput.files[0] ? await fileToBase64(imageInput.files[0]) : null;
-  let pdfData = pdfInput.files[0] ? await fileToBase64(pdfInput.files[0]) : null;
-  let audioData = audioInput.files[0] ? await fileToBase64(audioInput.files[0]) : null;
-  let videoData = videoInput.files[0] ? await fileToBase64(videoInput.files[0]) : null;
+  // Conversion sécurisée des fichiers joints s'ils existent
+  let imageData = (imageInput.files && imageInput.files[0]) ? await fileToBase64(imageInput.files[0]) : null;
+  let pdfData = (pdfInput.files && pdfInput.files[0]) ? await fileToBase64(pdfInput.files[0]) : null;
+  let pdfName = (pdfInput.files && pdfInput.files[0]) ? pdfInput.files[0].name : null;
+  let audioData = (audioInput.files && audioInput.files[0]) ? await fileToBase64(audioInput.files[0]) : null;
+  let videoData = (videoInput.files && videoInput.files[0]) ? await fileToBase64(videoInput.files[0]) : null;
 
   if (editingCourseId) {
     const course = data.courses.find(c => c.id === editingCourseId);
     if (course) {
-      course.title = titleInput.value.trim();
-      course.htmlContent = editor.innerHTML;
+      course.title = title;
+      course.htmlContent = htmlContent;
       course.links = [...currentCourseLinks];
       if (imageData) course.image = imageData;
-      if (pdfData) { course.pdf = pdfData; course.pdfName = pdfInput.files[0].name; }
+      if (pdfData) { course.pdf = pdfData; course.pdfName = pdfName; }
       if (audioData) course.audio = audioData;
       if (videoData) course.video = videoData;
     }
   } else {
     data.courses.push({
       id: Date.now(),
-      title: titleInput.value.trim(),
-      htmlContent: editor.innerHTML,
+      title: title,
+      htmlContent: htmlContent,
       links: [...currentCourseLinks],
       image: imageData,
       pdf: pdfData,
-      pdfName: pdfInput.files[0] ? pdfInput.files[0].name : null,
+      pdfName: pdfName,
       audio: audioData,
       video: videoData
     });
@@ -258,7 +270,7 @@ async function renderCourses() {
   const data = await getSubjectData(currentSubject);
 
   if (!data.courses || data.courses.length === 0) {
-    container.innerHTML = '<p>Aucun cours enregistré.</p>';
+    container.innerHTML = '<p>Aucun cours enregistré pour le moment.</p>';
     return;
   }
 
@@ -300,6 +312,7 @@ async function deleteCourse(courseId) {
 
 // --- FICHES MÉTHODES ---
 function resetAndShowMethodForm() {
+  if (!currentSubject) return alert("Veuillez d'abord sélectionner ou créer une matière.");
   editingMethodId = null;
   document.getElementById('form-method-title').textContent = "Ajouter une fiche méthode";
   document.getElementById('method-title-input').value = '';
@@ -308,10 +321,15 @@ function resetAndShowMethodForm() {
 }
 
 async function saveMethod() {
+  if (!currentSubject) return alert("Sélectionnez d'abord une matière.");
+
   const titleInput = document.getElementById('method-title-input');
   const editor = document.getElementById('method-editor-content');
 
-  if (!titleInput.value.trim() || !editor.innerHTML.trim()) return alert("Remplissez le titre et le contenu.");
+  const title = titleInput.value.trim();
+  const htmlContent = editor.innerHTML.trim();
+
+  if (!title || !htmlContent) return alert("Remplissez le titre et le contenu.");
 
   const data = await getSubjectData(currentSubject);
   if (!data.methods) data.methods = [];
@@ -319,14 +337,14 @@ async function saveMethod() {
   if (editingMethodId) {
     const method = data.methods.find(m => m.id === editingMethodId);
     if (method) {
-      method.title = titleInput.value.trim();
-      method.htmlContent = editor.innerHTML;
+      method.title = title;
+      method.htmlContent = htmlContent;
     }
   } else {
     data.methods.push({
       id: Date.now(),
-      title: titleInput.value.trim(),
-      htmlContent: editor.innerHTML
+      title: title,
+      htmlContent: htmlContent
     });
   }
 
@@ -385,17 +403,17 @@ async function deleteMethod(methodId) {
 async function openCourseModal(id, type = 'course') {
   const data = await getSubjectData(currentSubject);
   const item = type === 'course' 
-    ? data.courses.find(c => c.id === id)
-    : data.methods.find(m => m.id === id);
+    ? (data.courses ? data.courses.find(c => c.id === id) : null)
+    : (data.methods ? data.methods.find(m => m.id === id) : null);
 
   if (!item) return;
 
   document.getElementById('modal-course-title').textContent = item.title;
-  document.getElementById('modal-course-body').innerHTML = parseWikiLinks(item.htmlContent, data.dictionary);
+  document.getElementById('modal-course-body').innerHTML = parseWikiLinks(item.htmlContent, data.dictionary || []);
 
   let mediaHtml = '';
   if (item.image) mediaHtml += `<br><img src="${item.image}" style="max-width:100%; border-radius:8px;">`;
-  if (item.pdf) mediaHtml += `<br><a href="${item.pdf}" download="${item.pdfName}" class="btn-secondary" style="display:inline-block; margin-top:10px;">📄 PDF : ${item.pdfName}</a>`;
+  if (item.pdf) mediaHtml += `<br><a href="${item.pdf}" download="${item.pdfName || 'document.pdf'}" class="btn-secondary" style="display:inline-block; margin-top:10px;">📄 PDF : ${item.pdfName || 'Télécharger'}</a>`;
   if (item.audio) mediaHtml += `<br><audio controls class="media-player" src="${item.audio}"></audio>`;
   if (item.video) mediaHtml += `<br><video controls class="media-player" src="${item.video}"></video>`;
   document.getElementById('modal-course-media').innerHTML = mediaHtml;
@@ -434,7 +452,7 @@ function parseWikiLinks(html, dictionary) {
 
 async function openNotionModal(term) {
   const data = await getSubjectData(currentSubject);
-  const item = data.dictionary.find(d => d.term.toLowerCase() === term.toLowerCase());
+  const item = data.dictionary ? data.dictionary.find(d => d.term.toLowerCase() === term.toLowerCase()) : null;
 
   document.getElementById('notion-modal-term').textContent = term;
   document.getElementById('notion-modal-def').textContent = item ? item.definition : "Définition non renseignée.";
@@ -453,6 +471,8 @@ function closeNotionModal() {
 
 // --- DICTIONNAIRE ---
 async function saveNotion() {
+  if (!currentSubject) return alert("Sélectionnez d'abord une matière.");
+
   const termInput = document.getElementById('notion-term-input');
   const defInput = document.getElementById('notion-def-input');
   const term = termInput.value.trim();
@@ -508,7 +528,7 @@ async function renderDictionary() {
 
 async function editNotion(term) {
   const data = await getSubjectData(currentSubject);
-  const item = data.dictionary.find(d => d.term.toLowerCase() === term.toLowerCase());
+  const item = data.dictionary ? data.dictionary.find(d => d.term.toLowerCase() === term.toLowerCase()) : null;
   if (!item) return;
 
   document.getElementById('notion-term-input').value = item.term;
@@ -518,6 +538,7 @@ async function editNotion(term) {
 async function deleteNotion(term) {
   if (!confirm(`Supprimer "${term}" ?`)) return;
   const data = await getSubjectData(currentSubject);
+  if (!data.dictionary) return;
   data.dictionary = data.dictionary.filter(d => d.term.toLowerCase() !== term.toLowerCase());
   await saveSubjectData(currentSubject, data);
   await renderDictionary();
