@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mon Espace de Cours & Savoirs</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Navigation principale -->
+  <header>
+    <h1>Mon Espace d'Apprentissage</h1>
+    <nav id="subject-nav"></nav>
+    <div class="add-subject-form">
+      <input type="text" id="new-subject-name" placeholder="Nouvelle matière (ex: SES, SVT)...">
+      <button id="add-subject-btn">+ Ajouter Matière</button>
+    </div>
+  </header>
+
+  <!-- Contenu Principal -->
+  <main>
+    <h2 id="current-subject-title">Sélectionnez ou créez une matière</h2>
+
+    <!-- Navigation secondaire (3 Onglets) -->
+    <div id="view-toggle" class="hidden">
+      <button id="btn-view-courses" class="active">Mes Cours</button>
+      <button id="btn-view-method">Fiches Méthodes</button>
+      <button id="btn-view-dico">Dictionnaire / Encyclopédie</button>
+    </div>
+
+    <!-- SECTION : COURS -->
+    <section id="section-courses" class="hidden">
+      <div class="courses-header">
+        <h3>Liste des Cours</h3>
+        <button id="btn-show-add-course">+ Nouveau Cours</button>
+      </div>
+
+      <!-- Formulaire d'édition / création cours -->
+      <div id="course-form" class="card hidden">
+        <h4 id="form-course-title">Ajouter un cours</h4>
+        <input type="text" id="course-title-input" placeholder="Titre du cours (ex: La biodiversité)">
+
+        <!-- Barre d'outils avec boutons de couleurs directs -->
+        <div class="editor-toolbar">
+          <button type="button" onclick="execCmd('bold')" title="Gras"><b>B</b></button>
+          <button type="button" onclick="execCmd('italic')" title="Italique"><i>I</i></button>
+          <button type="button" onclick="execCmd('underline')" title="Souligné"><u>U</u></button>
+          
+          <span class="color-group-title">🎨 Texte :</span>
+          <button type="button" class="color-btn" style="background:#ef4444;" onclick="applyColor('#ef4444')" title="Rouge"></button>
+          <button type="button" class="color-btn" style="background:#2563eb;" onclick="applyColor('#2563eb')" title="Bleu"></button>
+          <button type="button" class="color-btn" style="background:#16a34a;" onclick="applyColor('#16a34a')" title="Vert"></button>
+          <button type="button" class="color-btn" style="background:#0f172a;" onclick="applyColor('#0f172a')" title="Noir"></button>
+
+          <span class="color-group-title">🖍️ Surligner :</span>
+          <button type="button" class="color-btn" style="background:#fef08a;" onclick="applyHighlight('#fef08a')" title="Jaune"></button>
+          <button type="button" class="color-btn" style="background:#bbf7d0;" onclick="applyHighlight('#bbf7d0')" title="Vert clair"></button>
+          <button type="button" class="color-btn" style="background:#bfdbfe;" onclick="applyHighlight('#bfdbfe')" title="Bleu clair"></button>
+          <button type="button" class="color-btn" style="background:#fbcfe8;" onclick="applyHighlight('#fbcfe8')" title="Rose"></button>
+        </div>
+
+        <div id="editor-content" contenteditable="true" class="rich-editor" placeholder="Écrivez votre cours ici..."></div>
+
+        <!-- Zone d'importation de médias -->
+        <div class="file-upload-section">
+          <h5>📁 Fichiers joints</h5>
+          <div class="file-input-group">
+            <label>🖼️ Image (JPG, PNG) :</label>
+            <input type="file" id="image-input" accept="image/png, image/jpeg">
+          </div>
+          <div class="file-input-group">
+            <label>📄 Fichier PDF :</label>
+            <input type="file" id="pdf-input" accept="application/pdf">
+          </div>
+          <div class="file-input-group">
+            <label>🎧 Fichier Audio (MP3) :</label>
+            <input type="file" id="audio-input" accept="audio/mp3, audio/mpeg">
+          </div>
+          <div class="file-input-group">
+            <label>🎬 Fichier Vidéo (MP4) :</label>
+            <input type="file" id="video-input" accept="video/mp4">
+          </div>
+        </div>
+
+        <!-- Bibliothèque de liens web -->
+        <div class="links-section">
+          <h5>🔗 Liens & Ressources Web</h5>
+          <div class="add-link-inputs">
+            <input type="text" id="link-title-input" placeholder="Nom de la ressource (ex: Vidéo récap)">
+            <input type="url" id="link-url-input" placeholder="URL (https://...)">
+            <button type="button" id="btn-add-link-item" class="btn-secondary">+ Ajouter le lien</button>
+          </div>
+          <ul id="links-preview-list" class="links-list-styled"></ul>
+        </div>
+
+        <div class="form-actions">
+          <button id="btn-save-course">Enregistrer le cours</button>
+          <button id="btn-cancel-course" class="btn-secondary">Annuler</button>
+        </div>
+      </div>
+
+      <!-- Liste des cartes de cours -->
+      <div id="courses-list"></div>
+    </section>
+
+    <!-- SECTION : FICHES MÉTHODES -->
+    <section id="section-method" class="hidden">
+      <div class="courses-header">
+        <h3>Fiches Méthodes</h3>
+        <button id="btn-show-add-method">+ Nouvelle Fiche Méthode</button>
+      </div>
+
+      <!-- Formulaire création/édition de méthode -->
+      <div id="method-form" class="card hidden">
+        <h4 id="form-method-title">Ajouter une fiche méthode</h4>
+        <input type="text" id="method-title-input" placeholder="Titre de la méthode (ex: Rédaction de la dissertation)">
+
+        <div class="editor-toolbar">
+          <button type="button" onclick="execCmd('bold')" title="Gras"><b>B</b></button>
+          <button type="button" onclick="execCmd('italic')" title="Italique"><i>I</i></button>
+          <button type="button" onclick="execCmd('underline')" title="Souligné"><u>U</u></button>
+          
+          <span class="color-group-title">🎨 Texte :</span>
+          <button type="button" class="color-btn" style="background:#ef4444;" onclick="applyColor('#ef4444')" title="Rouge"></button>
+          <button type="button" class="color-btn" style="background:#2563eb;" onclick="applyColor('#2563eb')" title="Bleu"></button>
+          <button type="button" class="color-btn" style="background:#16a34a;" onclick="applyColor('#16a34a')" title="Vert"></button>
+          <button type="button" class="color-btn" style="background:#0f172a;" onclick="applyColor('#0f172a')" title="Noir"></button>
+
+          <span class="color-group-title">🖍️ Surligner :</span>
+          <button type="button" class="color-btn" style="background:#fef08a;" onclick="applyHighlight('#fef08a')" title="Jaune"></button>
+          <button type="button" class="color-btn" style="background:#bbf7d0;" onclick="applyHighlight('#bbf7d0')" title="Vert clair"></button>
+          <button type="button" class="color-btn" style="background:#bfdbfe;" onclick="applyHighlight('#bfdbfe')" title="Bleu clair"></button>
+          <button type="button" class="color-btn" style="background:#fbcfe8;" onclick="applyHighlight('#fbcfe8')" title="Rose"></button>
+        </div>
+
+        <div id="method-editor-content" contenteditable="true" class="rich-editor" placeholder="Écrivez les étapes de la méthode ici..."></div>
+
+        <div class="form-actions">
+          <button id="btn-save-method">Enregistrer la fiche</button>
+          <button id="btn-cancel-method" class="btn-secondary">Annuler</button>
+        </div>
+      </div>
+
+      <div id="methods-list"></div>
+    </section>
+
+    <!-- SECTION : DICTIONNAIRE -->
+    <section id="section-dico" class="hidden">
+      <h3>Dictionnaire de la matière</h3>
+      
+      <div class="card">
+        <h4 id="form-notion-title">Ajouter une notion</h4>
+        <input type="text" id="notion-term-input" placeholder="Mot ou terme (ex: Écosystème, PIB)">
+        <textarea id="notion-def-input" rows="3" placeholder="Définition de la notion..."></textarea>
+        <button id="btn-save-notion">Enregistrer la notion</button>
+      </div>
+
+      <div id="dico-list" class="dico-grid"></div>
+    </section>
+  </main>
+
+  <!-- MODALE : CONSULTATION DE COURS / METHODE -->
+  <div id="course-modal" class="modal hidden">
+    <div class="modal-content modal-large">
+      <span class="close-btn" onclick="closeCourseModal()">&times;</span>
+      <h2 id="modal-course-title">Titre</h2>
+      <hr class="separator">
+      
+      <div class="course-modal-layout">
+        <div class="course-modal-main">
+          <div id="modal-course-body" class="course-content"></div>
+          <div id="modal-course-media"></div>
+        </div>
+        <div class="course-modal-sidebar">
+          <h4>🔗 Liens associés</h4>
+          <div id="modal-course-links"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODALE : CONSULTATION RAPIDE D'UNE NOTION DU DICO -->
+  <div id="notion-modal" class="modal hidden">
+    <div class="modal-content modal-small">
+      <span class="close-btn" onclick="closeNotionModal()">&times;</span>
+      <h3 id="notion-modal-term">Terme</h3>
+      <p id="notion-modal-def" class="notion-def-text"></p>
+      
+      <div class="external-dictionary-links">
+        <span>Consulter les dictionnaires en ligne :</span>
+        <div class="dict-buttons">
+          <a id="link-robert" target="_blank" class="dict-btn robert">Le Robert</a>
+          <a id="link-larousse" target="_blank" class="dict-btn larousse">Larousse</a>
+          <a id="link-wiki" target="_blank" class="dict-btn wiki">Wikipédia</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
