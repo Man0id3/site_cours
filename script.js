@@ -56,27 +56,21 @@ function setupEventListeners() {
   document.getElementById('btn-add-link-item').addEventListener('click', addLinkToForm);
 }
 
-// --- COMMUNICATION SERVEUR (FICHIERS .JSON) ---
+// --- SAUVEGARDE EN LOCALSTORAGE (ADAPTÉ POUR GITHUB PAGES) ---
 async function getSubjectData(subjectName) {
-  try {
-    const response = await fetch(`/api/load/${encodeURIComponent(subjectName)}`);
-    return await response.json();
-  } catch (err) {
-    console.error("Erreur de lecture du fichier JSON :", err);
-    return { name: subjectName, courses: [], methods: [], dictionary: [] };
+  const rawData = localStorage.getItem(`subject_${subjectName}`);
+  if (rawData) {
+    try {
+      return JSON.parse(rawData);
+    } catch (e) {
+      console.error("Erreur de lecture du localStorage :", e);
+    }
   }
+  return { name: subjectName, courses: [], methods: [], dictionary: [] };
 }
 
 async function saveSubjectData(subjectName, data) {
-  try {
-    await fetch('/api/save', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-  } catch (err) {
-    console.error("Erreur lors de la sauvegarde du fichier JSON :", err);
-  }
+  localStorage.setItem(`subject_${subjectName}`, JSON.stringify(data));
 }
 
 // --- MATIÈRES ---
@@ -97,20 +91,22 @@ async function loadSubjectNavigation() {
   const nav = document.getElementById('subject-nav');
   nav.innerHTML = '';
   
-  try {
-    const response = await fetch('/api/subjects');
-    const subjects = await response.json();
-
-    subjects.forEach(sub => {
-      const btn = document.createElement('button');
-      btn.textContent = sub;
-      if (sub === currentSubject) btn.classList.add('active');
-      btn.onclick = () => selectSubject(sub);
-      nav.appendChild(btn);
-    });
-  } catch (err) {
-    console.error("Erreur lors du chargement de la liste des matières :", err);
+  // Récupération de la liste des matières depuis le localStorage
+  const subjects = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key.startsWith('subject_')) {
+      subjects.push(key.replace('subject_', ''));
+    }
   }
+
+  subjects.sort().forEach(sub => {
+    const btn = document.createElement('button');
+    btn.textContent = sub;
+    if (sub === currentSubject) btn.classList.add('active');
+    btn.onclick = () => selectSubject(sub);
+    nav.appendChild(btn);
+  });
 }
 
 async function selectSubject(subjectName) {
