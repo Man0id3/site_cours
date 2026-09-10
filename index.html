@@ -9,24 +9,23 @@
 <body>
 
   <!-- ÉCRAN DE CONNEXION -->
-  <div id="auth-container" style="max-width: 400px; margin: 60px auto; padding: 25px; border: 1px solid #ccc; border-radius: 8px; background-color: #ffffff; text-align: center;">
-    <h2>Connexion</h2>
-    <form id="login-form" style="margin-top: 15px;">
-      <input type="email" id="auth-email" placeholder="E-mail" required style="width: 100%; margin-bottom: 12px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-      <input type="password" id="auth-password" placeholder="Mot de passe" required style="width: 100%; margin-bottom: 12px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box;">
-      <button type="submit" class="btn-primary" style="width: 100%; padding: 10px;">Se connecter</button>
+  <div id="auth-container" class="card" style="max-width: 400px; margin: 80px auto; padding: 2rem;">
+    <h2 style="text-align: center; margin-bottom: 1.5rem;">Connexion</h2>
+    <form id="login-form">
+      <input type="email" id="auth-email" placeholder="E-mail" required style="margin-bottom: 1rem;">
+      <input type="password" id="auth-password" placeholder="Mot de passe" required style="margin-bottom: 1.5rem;">
+      <button type="submit" class="btn-primary" style="width: 100%;">Se connecter</button>
     </form>
-    <p id="auth-error" style="color: red; margin-top: 12px; display: none; font-size: 0.9rem;"></p>
+    <p id="auth-error" style="color: #dc2626; margin-top: 1rem; text-align: center; display: none;"></p>
   </div>
 
-  <!-- CONTENU DU SITE (Masqué tant que non connecté) -->
+  <!-- CONTENU DU SITE -->
   <div id="app-container" class="hidden">
-    <div style="text-align: right; padding: 10px;">
-      <button id="btn-logout" class="btn-danger">Déconnexion</button>
-    </div>
-
     <header>
-      <h1>Mon Espace d'Apprentissage</h1>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h1 style="margin: 0;">Mon Espace d'Apprentissage</h1>
+        <button id="btn-logout" class="btn-danger">Déconnexion</button>
+      </div>
       <div class="add-subject-bar">
         <input type="text" id="new-subject-name" placeholder="Nouvelle matière (ex: SES, SVT)...">
         <button id="add-subject-btn" class="btn-primary">+ Ajouter Matière</button>
