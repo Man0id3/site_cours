@@ -1,6 +1,6 @@
 // --- CONFIGURATION FIREBASE ---
 const firebaseConfig = {
-  apiKey: "AIzaSyBEXlxtdJOtow7TwR2KiV6NCszorXSFsQ8",
+  apiKey: "AIzaSyBEXlxtdJOtow7TwR2KIV6NCszorXsFSQ8",
   authDomain: "site-cours-a9eb4.firebaseapp.com",
   databaseURL: "https://site-cours-a9eb4-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "site-cours-a9eb4",
