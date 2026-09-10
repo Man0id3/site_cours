@@ -1,5 +1,4 @@
 // --- CONFIGURATION FIREBASE ---
-// Remplace avec tes propres clés récupérées dans la console Firebase :
 const firebaseConfig = {
   apiKey: "AIzaSyBEXlxtdJOtow7TwR2KiV6NCszorXSFsQ8",
   authDomain: "site-cours-a9eb4.firebaseapp.com",
@@ -10,9 +9,10 @@ const firebaseConfig = {
   appId: "1:610542919440:web:e5e50daf5bdcca06628f95"
 };
 
-// Initialisation de Firebase
+// Initialisation de Firebase et de l'Authentification
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+const auth = firebase.auth(); // <-- NOUVEAU
 
 let currentSubject = null;
 let editingCourseId = null;
@@ -34,16 +34,55 @@ function execCmd(command) {
   document.execCommand(command, false, null); 
 }
 
-// --- INITIALISATION ---
-document.addEventListener('DOMContentLoaded', async () => {
+// --- INITIALISATION & CONNEXION ---
+document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
-  await loadSubjectNavigation();
 
-  const savedSubject = localStorage.getItem('lastActiveSubject');
-  if (savedSubject) {
-    await selectSubject(savedSubject);
-  }
+  // Écouteur pour la soumission du formulaire de connexion
+  document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const errorElement = document.getElementById('auth-error');
+
+    try {
+      await auth.signInWithEmailAndPassword(email, password);
+      errorElement.style.display = 'none';
+    } catch (error) {
+      errorElement.textContent = "Erreur de connexion : " + error.message;
+      errorElement.style.display = 'block';
+    }
+  });
+
+  // Bouton de déconnexion
+  document.getElementById('btn-logout').addEventListener('click', () => {
+    auth.signOut();
+  });
+
+  // Vérifie automatiquement si tu es connecté ou non
+  auth.onAuthStateChanged(async (user) => {
+    const authContainer = document.getElementById('auth-container');
+    const appContainer = document.getElementById('app-container');
+
+    if (user) {
+      // Connecté : on masque le formulaire et on affiche l'application
+      authContainer.classList.add('hidden');
+      appContainer.classList.remove('hidden');
+
+      await loadSubjectNavigation();
+      const savedSubject = localStorage.getItem('lastActiveSubject');
+      if (savedSubject) {
+        await selectSubject(savedSubject);
+      }
+    } else {
+      // Déconnecté : on masque l'application et on affiche le formulaire
+      authContainer.classList.remove('hidden');
+      appContainer.classList.add('hidden');
+    }
+  });
 });
+
+// --- Reste du code (setupEventListeners, getSubjectData, etc.) inchangé ci-dessous ---
 
 function setupEventListeners() {
   document.getElementById('add-subject-btn').addEventListener('click', createSubject);
