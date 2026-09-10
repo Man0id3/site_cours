@@ -75,6 +75,11 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function setupEventListeners() {
+  // Gestion du thème
+  const themeBtn = document.getElementById('btn-theme-toggle');
+  if (themeBtn) {
+    themeBtn.onclick = toggleTheme;
+  }
   document.getElementById('add-subject-btn').onclick = createSubject;
   document.getElementById('btn-view-courses').onclick = () => switchView('courses');
   document.getElementById('btn-view-method').onclick = () => switchView('method');
@@ -566,3 +571,33 @@ window.deleteNotion = async function(term) {
   await saveSubjectData(currentSubject, data);
   await renderDictionary();
 };
+
+// --- GESTION DU THÈME CLAIR / SOMBRE ---
+function initTheme() {
+  const savedTheme = localStorage.getItem('appTheme');
+  const themeBtn = document.getElementById('btn-theme-toggle');
+  
+  if (savedTheme === 'dark') {
+    document.body.classList.add('dark-theme');
+    if (themeBtn) themeBtn.textContent = '☀️ Mode Clair';
+  } else {
+    document.body.classList.remove('dark-theme');
+    if (themeBtn) themeBtn.textContent = '🌙 Mode Sombre';
+  }
+}
+
+function toggleTheme() {
+  const themeBtn = document.getElementById('btn-theme-toggle');
+  document.body.classList.toggle('dark-theme');
+  
+  if (document.body.classList.contains('dark-theme')) {
+    localStorage.setItem('appTheme', 'dark');
+    if (themeBtn) themeBtn.textContent = '☀️ Mode Clair';
+  } else {
+    localStorage.setItem('appTheme', 'light');
+    if (themeBtn) themeBtn.textContent = '🌙 Mode Sombre';
+  }
+}
+
+// Appliquer le thème dès le chargement du script
+initTheme();
