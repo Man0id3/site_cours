@@ -1,4 +1,7 @@
-// --- CONFIGURATION FIREBASE ---
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getDatabase, ref, set, get, child } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
 const firebaseConfig = {
   apiKey: "AIzaSyBEXlxtdJOtow7TwR2KIV6NCszorXsFSQ8",
   authDomain: "site-cours-a9eb4.firebaseapp.com",
@@ -9,72 +12,57 @@ const firebaseConfig = {
   appId: "1:610542919440:web:e5e50daf5bdcca06628f95"
 };
 
-// Initialisation de Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const auth = firebase.auth();
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
 
 let currentSubject = null;
 let editingCourseId = null;
 let editingMethodId = null;
 let currentCourseLinks = [];
 
-// --- OUTILS ÉDITEUR ---
-function applyColor(color) {
-  document.execCommand('foreColor', false, color);
-}
-
-function applyHighlight(color) {
+// Exposer les fonctions globales pour la barre d'édition texte (Word)
+window.applyColor = function(color) { document.execCommand('foreColor', false, color); };
+window.applyHighlight = function(color) {
   if (!document.execCommand('hiliteColor', false, color)) {
     document.execCommand('backColor', false, color);
   }
-}
+};
+window.execCmd = function(command) { document.execCommand(command, false, null); };
+window.closeCourseModal = function() { document.getElementById('course-modal').classList.add('hidden'); };
+window.closeNotionModal = function() { document.getElementById('notion-modal').classList.add('hidden'); };
 
-function execCmd(command) { 
-  document.execCommand(command, false, null); 
-}
-
-// --- INITIALISATION & AUTHENTIFICATION ---
+// --- GESTION DE L'AUTHENTIFICATION ---
 document.addEventListener('DOMContentLoaded', () => {
-  setupEventListeners();
-
-  // Connexion
   const loginForm = document.getElementById('login-form');
-  if (loginForm) {
-    loginForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const email = document.getElementById('auth-email').value.trim();
-      const password = document.getElementById('auth-password').value.trim();
-      const errorElement = document.getElementById('auth-error');
-
-      try {
-        await auth.signInWithEmailAndPassword(email, password);
-        errorElement.style.display = 'none';
-      } catch (error) {
-        errorElement.textContent = "Erreur de connexion : " + error.message;
-        errorElement.style.display = 'block';
-      }
-    });
-  }
-
-  // Déconnexion
+  const authContainer = document.getElementById('auth-container');
+  const appContainer = document.getElementById('app-container');
+  const authError = document.getElementById('auth-error');
   const btnLogout = document.getElementById('btn-logout');
-  if (btnLogout) {
-    btnLogout.addEventListener('click', () => {
-      auth.signOut();
-    });
-  }
 
-  // Écouteur d'état de connexion
-  auth.onAuthStateChanged(async (user) => {
-    const authContainer = document.getElementById('auth-container');
-    const appContainer = document.getElementById('app-container');
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    authError.style.display = 'none';
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
 
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (err) {
+      authError.textContent = "Erreur de connexion : " + err.message;
+      authError.style.display = 'block';
+    }
+  });
+
+  btnLogout.addEventListener('click', () => signOut(auth));
+
+  onAuthStateChanged(auth, async (user) => {
     if (user) {
       authContainer.classList.add('hidden');
       appContainer.classList.remove('hidden');
-
+      setupEventListeners();
       await loadSubjectNavigation();
+
       const savedSubject = localStorage.getItem('lastActiveSubject');
       if (savedSubject) {
         await selectSubject(savedSubject);
@@ -87,65 +75,62 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function setupEventListeners() {
-  document.getElementById('add-subject-btn').addEventListener('click', createSubject);
-
-  document.getElementById('btn-view-courses').addEventListener('click', () => switchView('courses'));
-  document.getElementById('btn-view-method').addEventListener('click', () => switchView('method'));
-  document.getElementById('btn-view-dico').addEventListener('click', () => switchView('dico'));
+  document.getElementById('add-subject-btn').onclick = createSubject;
+  document.getElementById('btn-view-courses').onclick = () => switchView('courses');
+  document.getElementById('btn-view-method').onclick = () => switchView('method');
+  document.getElementById('btn-view-dico').onclick = () => switchView('dico');
 
   // Cours
-  document.getElementById('btn-show-add-course').addEventListener('click', resetAndShowCourseForm);
-  document.getElementById('btn-cancel-course').addEventListener('click', () => {
+  document.getElementById('btn-show-add-course').onclick = resetAndShowCourseForm;
+  document.getElementById('btn-cancel-course').onclick = () => {
     document.getElementById('course-form').classList.add('hidden');
-  });
-  document.getElementById('btn-save-course').addEventListener('click', saveCourse);
+  };
+  document.getElementById('btn-save-course').onclick = saveCourse;
 
   // Méthodes
-  document.getElementById('btn-show-add-method').addEventListener('click', resetAndShowMethodForm);
-  document.getElementById('btn-cancel-method').addEventListener('click', () => {
+  document.getElementById('btn-show-add-method').onclick = resetAndShowMethodForm;
+  document.getElementById('btn-cancel-method').onclick = () => {
     document.getElementById('method-form').classList.add('hidden');
-  });
-  document.getElementById('btn-save-method').addEventListener('click', saveMethod);
+  };
+  document.getElementById('btn-save-method').onclick = saveMethod;
 
   // Dico & Liens
-  document.getElementById('btn-save-notion').addEventListener('click', saveNotion);
-  document.getElementById('btn-add-link-item').addEventListener('click', addLinkToForm);
+  document.getElementById('btn-save-notion').onclick = saveNotion;
+  document.getElementById('btn-add-link-item').onclick = addLinkToForm;
 }
 
-// --- BASE DE DONNÉES FIREBASE ---
+// --- COMMUNICATION FIREBASE REALTIME DATABASE ---
 async function getSubjectData(subjectName) {
-  if (!subjectName) return { name: '', courses: [], methods: [], dictionary: [] };
   try {
-    const snapshot = await db.ref(`subjects/${subjectName}`).once('value');
-    const data = snapshot.val();
-    if (data) {
+    const dbRef = ref(db);
+    const snapshot = await get(child(dbRef, `subjects/${subjectName}`));
+    if (snapshot.exists()) {
+      const data = snapshot.val();
       return {
-        name: data.name || subjectName,
+        name: subjectName,
         courses: data.courses || [],
         methods: data.methods || [],
         dictionary: data.dictionary || []
       };
     }
   } catch (err) {
-    console.error("Erreur de lecture Firebase :", err);
+    console.error("Erreur Firebase :", err);
   }
   return { name: subjectName, courses: [], methods: [], dictionary: [] };
 }
 
 async function saveSubjectData(subjectName, data) {
-  if (!subjectName) return;
   try {
-    await db.ref(`subjects/${subjectName}`).set(data);
+    await set(ref(db, `subjects/${subjectName}`), data);
   } catch (err) {
-    console.error("Erreur de sauvegarde Firebase :", err);
-    alert("Erreur lors de la sauvegarde sur le serveur.");
+    console.error("Erreur sauvegarde Firebase :", err);
   }
 }
 
 // --- MATIÈRES ---
 async function createSubject() {
   const input = document.getElementById('new-subject-name');
-  const name = input.value.trim().toUpperCase().replace(/[.#$\[\]]/g, "_");
+  const name = input.value.trim().toUpperCase();
   if (!name) return alert("Entrez un nom de matière.");
 
   const initialData = { name: name, courses: [], methods: [], dictionary: [] };
@@ -159,14 +144,12 @@ async function createSubject() {
 async function loadSubjectNavigation() {
   const nav = document.getElementById('subject-nav');
   nav.innerHTML = '';
-  
+
   try {
-    const snapshot = await db.ref('subjects').once('value');
-    const subjectsData = snapshot.val();
-    
-    if (subjectsData) {
-      const subjects = Object.keys(subjectsData);
-      subjects.sort().forEach(sub => {
+    const snapshot = await get(ref(db, 'subjects'));
+    if (snapshot.exists()) {
+      const subjects = Object.keys(snapshot.val());
+      subjects.forEach(sub => {
         const btn = document.createElement('button');
         btn.textContent = sub;
         if (sub === currentSubject) btn.classList.add('active');
@@ -175,14 +158,14 @@ async function loadSubjectNavigation() {
       });
     }
   } catch (err) {
-    console.error("Erreur lors du chargement des matières :", err);
+    console.error("Erreur chargement matières :", err);
   }
 }
 
 async function selectSubject(subjectName) {
   currentSubject = subjectName;
   localStorage.setItem('lastActiveSubject', subjectName);
-  
+
   await loadSubjectNavigation();
   document.getElementById('current-subject-title').textContent = `Matière : ${subjectName}`;
   document.getElementById('view-toggle').classList.remove('hidden');
@@ -193,7 +176,7 @@ async function switchView(viewName) {
   const btnCourses = document.getElementById('btn-view-courses');
   const btnMethod = document.getElementById('btn-view-method');
   const btnDico = document.getElementById('btn-view-dico');
-  
+
   const secCourses = document.getElementById('section-courses');
   const secMethod = document.getElementById('section-method');
   const secDico = document.getElementById('section-dico');
@@ -220,7 +203,7 @@ async function switchView(viewName) {
   }
 }
 
-// --- LIENS ASSOCIÉS COURS ---
+// --- LIENS ASSOCIÉS ---
 function addLinkToForm() {
   const titleInput = document.getElementById('link-title-input');
   const urlInput = document.getElementById('link-url-input');
@@ -238,19 +221,18 @@ function renderFormLinksList() {
   list.innerHTML = '';
   currentCourseLinks.forEach((link, idx) => {
     const li = document.createElement('li');
-    li.innerHTML = `<span>${link.title} (${link.url})</span> <button type="button" class="btn-danger" style="padding:2px 6px;" onclick="removeFormLink(${idx})">&times;</button>`;
+    li.innerHTML = `<span>${link.title} (${link.url})</span> <button type="button" class="btn-danger" style="padding:2px 6px;" onclick="window.removeFormLink(${idx})">&times;</button>`;
     list.appendChild(li);
   });
 }
 
-function removeFormLink(idx) {
+window.removeFormLink = function(idx) {
   currentCourseLinks.splice(idx, 1);
   renderFormLinksList();
-}
+};
 
 // --- COURS ---
 function resetAndShowCourseForm() {
-  if (!currentSubject) return alert("Veuillez d'abord sélectionner ou créer une matière.");
   editingCourseId = null;
   currentCourseLinks = [];
   document.getElementById('form-course-title').textContent = "Ajouter un cours";
@@ -274,15 +256,10 @@ function fileToBase64(file) {
 }
 
 async function saveCourse() {
-  if (!currentSubject) return alert("Sélectionnez d'abord une matière.");
-
   const titleInput = document.getElementById('course-title-input');
   const editor = document.getElementById('editor-content');
 
-  const title = titleInput.value.trim();
-  const htmlContent = editor.innerHTML.trim();
-
-  if (!title || !htmlContent) return alert("Remplissez le titre et le contenu du cours.");
+  if (!titleInput.value.trim() || !editor.innerHTML.trim()) return alert("Remplissez le titre et le contenu.");
 
   const data = await getSubjectData(currentSubject);
 
@@ -291,32 +268,31 @@ async function saveCourse() {
   const audioInput = document.getElementById('audio-input');
   const videoInput = document.getElementById('video-input');
 
-  let imageData = (imageInput.files && imageInput.files[0]) ? await fileToBase64(imageInput.files[0]) : null;
-  let pdfData = (pdfInput.files && pdfInput.files[0]) ? await fileToBase64(pdfInput.files[0]) : null;
-  let pdfName = (pdfInput.files && pdfInput.files[0]) ? pdfInput.files[0].name : null;
-  let audioData = (audioInput.files && audioInput.files[0]) ? await fileToBase64(audioInput.files[0]) : null;
-  let videoData = (videoInput.files && videoInput.files[0]) ? await fileToBase64(videoInput.files[0]) : null;
+  let imageData = imageInput.files[0] ? await fileToBase64(imageInput.files[0]) : null;
+  let pdfData = pdfInput.files[0] ? await fileToBase64(pdfInput.files[0]) : null;
+  let audioData = audioInput.files[0] ? await fileToBase64(audioInput.files[0]) : null;
+  let videoData = videoInput.files[0] ? await fileToBase64(videoInput.files[0]) : null;
 
   if (editingCourseId) {
     const course = data.courses.find(c => c.id === editingCourseId);
     if (course) {
-      course.title = title;
-      course.htmlContent = htmlContent;
+      course.title = titleInput.value.trim();
+      course.htmlContent = editor.innerHTML;
       course.links = [...currentCourseLinks];
       if (imageData) course.image = imageData;
-      if (pdfData) { course.pdf = pdfData; course.pdfName = pdfName; }
+      if (pdfData) { course.pdf = pdfData; course.pdfName = pdfInput.files[0].name; }
       if (audioData) course.audio = audioData;
       if (videoData) course.video = videoData;
     }
   } else {
     data.courses.push({
       id: Date.now(),
-      title: title,
-      htmlContent: htmlContent,
+      title: titleInput.value.trim(),
+      htmlContent: editor.innerHTML,
       links: [...currentCourseLinks],
       image: imageData,
       pdf: pdfData,
-      pdfName: pdfName,
+      pdfName: pdfInput.files[0] ? pdfInput.files[0].name : null,
       audio: audioData,
       video: videoData
     });
@@ -335,7 +311,7 @@ async function renderCourses() {
   const data = await getSubjectData(currentSubject);
 
   if (!data.courses || data.courses.length === 0) {
-    container.innerHTML = '<p>Aucun cours enregistré pour le moment.</p>';
+    container.innerHTML = '<p>Aucun cours enregistré.</p>';
     return;
   }
 
@@ -343,17 +319,50 @@ async function renderCourses() {
     const card = document.createElement('div');
     card.className = 'course-card-compact';
     card.innerHTML = `
-      <span class="course-title-click" onclick="openCourseModal(${course.id}, 'course')">📖 ${course.title}</span>
+      <span class="course-title-click" onclick="window.openCourseModal(${course.id}, 'course')">📖 ${course.title}</span>
       <div class="card-actions">
-        <button class="btn-secondary" onclick="editCourse(${course.id})">✏️ Modifier</button>
-        <button class="btn-danger" onclick="deleteCourse(${course.id})">🗑️ Supprimer</button>
+        <button class="btn-secondary" onclick="window.editCourse(${course.id})">✏️ Modifier</button>
+        <button class="btn-danger" onclick="window.deleteCourse(${course.id})">🗑️ Supprimer</button>
       </div>
     `;
     container.appendChild(card);
   });
 }
 
-async function editCourse(courseId) {
+window.openCourseModal = async function(id, type = 'course') {
+  const data = await getSubjectData(currentSubject);
+  const item = type === 'course' 
+    ? data.courses.find(c => c.id === id)
+    : data.methods.find(m => m.id === id);
+
+  if (!item) return;
+
+  document.getElementById('modal-course-title').textContent = item.title;
+  document.getElementById('modal-course-body').innerHTML = parseWikiLinks(item.htmlContent, data.dictionary);
+
+  let mediaHtml = '';
+  if (item.image) mediaHtml += `<br><img src="${item.image}" style="max-width:100%; border-radius:8px;">`;
+  if (item.pdf) mediaHtml += `<br><a href="${item.pdf}" download="${item.pdfName}" class="btn-secondary" style="display:inline-block; margin-top:10px;">📄 PDF : ${item.pdfName}</a>`;
+  if (item.audio) mediaHtml += `<br><audio controls class="media-player" src="${item.audio}"></audio>`;
+  if (item.video) mediaHtml += `<br><video controls class="media-player" src="${item.video}"></video>`;
+  document.getElementById('modal-course-media').innerHTML = mediaHtml;
+
+  let linksHtml = '';
+  if (item.links && item.links.length > 0) {
+    linksHtml = '<ul class="links-list-styled">';
+    item.links.forEach(l => {
+      linksHtml += `<li><a href="${l.url}" target="_blank">${l.title}</a></li>`;
+    });
+    linksHtml += '</ul>';
+  } else {
+    linksHtml = '<p style="color:var(--text-muted); font-size:0.85rem;">Aucun lien joint.</p>';
+  }
+  document.getElementById('modal-course-links').innerHTML = linksHtml;
+
+  document.getElementById('course-modal').classList.remove('hidden');
+};
+
+window.editCourse = async function(courseId) {
   const data = await getSubjectData(currentSubject);
   const course = data.courses.find(c => c.id === courseId);
   if (!course) return;
@@ -365,19 +374,18 @@ async function editCourse(courseId) {
   document.getElementById('editor-content').innerHTML = course.htmlContent;
   renderFormLinksList();
   document.getElementById('course-form').classList.remove('hidden');
-}
+};
 
-async function deleteCourse(courseId) {
+window.deleteCourse = async function(courseId) {
   if (!confirm("Supprimer ce cours ?")) return;
   const data = await getSubjectData(currentSubject);
   data.courses = data.courses.filter(c => c.id !== courseId);
   await saveSubjectData(currentSubject, data);
   await renderCourses();
-}
+};
 
 // --- FICHES MÉTHODES ---
 function resetAndShowMethodForm() {
-  if (!currentSubject) return alert("Veuillez d'abord sélectionner ou créer une matière.");
   editingMethodId = null;
   document.getElementById('form-method-title').textContent = "Ajouter une fiche méthode";
   document.getElementById('method-title-input').value = '';
@@ -386,29 +394,25 @@ function resetAndShowMethodForm() {
 }
 
 async function saveMethod() {
-  if (!currentSubject) return alert("Sélectionnez d'abord une matière.");
-
   const titleInput = document.getElementById('method-title-input');
   const editor = document.getElementById('method-editor-content');
 
-  const title = titleInput.value.trim();
-  const htmlContent = editor.innerHTML.trim();
-
-  if (!title || !htmlContent) return alert("Remplissez le titre et le contenu.");
+  if (!titleInput.value.trim() || !editor.innerHTML.trim()) return alert("Remplissez le titre et le contenu.");
 
   const data = await getSubjectData(currentSubject);
+  if (!data.methods) data.methods = [];
 
   if (editingMethodId) {
     const method = data.methods.find(m => m.id === editingMethodId);
     if (method) {
-      method.title = title;
-      method.htmlContent = htmlContent;
+      method.title = titleInput.value.trim();
+      method.htmlContent = editor.innerHTML;
     }
   } else {
     data.methods.push({
       id: Date.now(),
-      title: title,
-      htmlContent: htmlContent
+      title: titleInput.value.trim(),
+      htmlContent: editor.innerHTML
     });
   }
 
@@ -433,17 +437,17 @@ async function renderMethods() {
     const card = document.createElement('div');
     card.className = 'course-card-compact';
     card.innerHTML = `
-      <span class="course-title-click" onclick="openCourseModal(${method.id}, 'method')">📌 ${method.title}</span>
+      <span class="course-title-click" onclick="window.openCourseModal(${method.id}, 'method')">📌 ${method.title}</span>
       <div class="card-actions">
-        <button class="btn-secondary" onclick="editMethod(${method.id})">✏️ Modifier</button>
-        <button class="btn-danger" onclick="deleteMethod(${method.id})">🗑️ Supprimer</button>
+        <button class="btn-secondary" onclick="window.editMethod(${method.id})">✏️ Modifier</button>
+        <button class="btn-danger" onclick="window.deleteMethod(${method.id})">🗑️ Supprimer</button>
       </div>
     `;
     container.appendChild(card);
   });
 }
 
-async function editMethod(methodId) {
+window.editMethod = async function(methodId) {
   const data = await getSubjectData(currentSubject);
   const method = data.methods.find(m => m.id === methodId);
   if (!method) return;
@@ -453,54 +457,17 @@ async function editMethod(methodId) {
   document.getElementById('method-title-input').value = method.title;
   document.getElementById('method-editor-content').innerHTML = method.htmlContent;
   document.getElementById('method-form').classList.remove('hidden');
-}
+};
 
-async function deleteMethod(methodId) {
+window.deleteMethod = async function(methodId) {
   if (!confirm("Supprimer cette méthode ?")) return;
   const data = await getSubjectData(currentSubject);
   data.methods = data.methods.filter(m => m.id !== methodId);
   await saveSubjectData(currentSubject, data);
   await renderMethods();
-}
+};
 
-// --- MODALES DE LECTURE ---
-async function openCourseModal(id, type = 'course') {
-  const data = await getSubjectData(currentSubject);
-  const item = type === 'course' 
-    ? (data.courses ? data.courses.find(c => c.id === id) : null)
-    : (data.methods ? data.methods.find(m => m.id === id) : null);
-
-  if (!item) return;
-
-  document.getElementById('modal-course-title').textContent = item.title;
-  document.getElementById('modal-course-body').innerHTML = parseWikiLinks(item.htmlContent, data.dictionary || []);
-
-  let mediaHtml = '';
-  if (item.image) mediaHtml += `<br><img src="${item.image}" style="max-width:100%; border-radius:8px;">`;
-  if (item.pdf) mediaHtml += `<br><a href="${item.pdf}" download="${item.pdfName || 'document.pdf'}" class="btn-secondary" style="display:inline-block; margin-top:10px;">📄 PDF : ${item.pdfName || 'Télécharger'}</a>`;
-  if (item.audio) mediaHtml += `<br><audio controls class="media-player" src="${item.audio}"></audio>`;
-  if (item.video) mediaHtml += `<br><video controls class="media-player" src="${item.video}"></video>`;
-  document.getElementById('modal-course-media').innerHTML = mediaHtml;
-
-  let linksHtml = '';
-  if (item.links && item.links.length > 0) {
-    linksHtml = '<ul class="links-list-styled">';
-    item.links.forEach(l => {
-      linksHtml += `<li><a href="${l.url}" target="_blank">${l.title}</a></li>`;
-    });
-    linksHtml += '</ul>';
-  } else {
-    linksHtml = '<p style="color:var(--text-muted); font-size:0.85rem;">Aucun lien joint.</p>';
-  }
-  document.getElementById('modal-course-links').innerHTML = linksHtml;
-
-  document.getElementById('course-modal').classList.remove('hidden');
-}
-
-function closeCourseModal() { 
-  document.getElementById('course-modal').classList.add('hidden'); 
-}
-
+// --- DICTIONNAIRE ---
 function parseWikiLinks(html, dictionary) {
   if (!dictionary || dictionary.length === 0) return html;
   let formattedHtml = html;
@@ -508,15 +475,15 @@ function parseWikiLinks(html, dictionary) {
 
   sortedDict.forEach(item => {
     const regex = new RegExp(`\\b(${item.term})\\b`, 'gi');
-    formattedHtml = formattedHtml.replace(regex, `<span class="wiki-link" onclick="openNotionModal('$1')">$1</span>`);
+    formattedHtml = formattedHtml.replace(regex, `<span class="wiki-link" onclick="window.openNotionModal('$1')">$1</span>`);
   });
 
   return formattedHtml;
 }
 
-async function openNotionModal(term) {
+window.openNotionModal = async function(term) {
   const data = await getSubjectData(currentSubject);
-  const item = data.dictionary ? data.dictionary.find(d => d.term.toLowerCase() === term.toLowerCase()) : null;
+  const item = data.dictionary.find(d => d.term.toLowerCase() === term.toLowerCase());
 
   document.getElementById('notion-modal-term').textContent = term;
   document.getElementById('notion-modal-def').textContent = item ? item.definition : "Définition non renseignée.";
@@ -527,16 +494,9 @@ async function openNotionModal(term) {
   document.getElementById('link-wiki').href = `https://fr.wikipedia.org/wiki/${encodedTerm}`;
 
   document.getElementById('notion-modal').classList.remove('hidden');
-}
+};
 
-function closeNotionModal() { 
-  document.getElementById('notion-modal').classList.add('hidden'); 
-}
-
-// --- DICTIONNAIRE ---
 async function saveNotion() {
-  if (!currentSubject) return alert("Sélectionnez d'abord une matière.");
-
   const termInput = document.getElementById('notion-term-input');
   const defInput = document.getElementById('notion-def-input');
   const term = termInput.value.trim();
@@ -545,6 +505,7 @@ async function saveNotion() {
   if (!term || !definition) return alert("Complétez le mot et la définition.");
 
   const data = await getSubjectData(currentSubject);
+  if (!data.dictionary) data.dictionary = [];
 
   const existingIndex = data.dictionary.findIndex(d => d.term.toLowerCase() === term.toLowerCase());
 
@@ -579,8 +540,8 @@ async function renderDictionary() {
       <div style="display:flex; justify-content:space-between; align-items:start;">
         <h5>${item.term}</h5>
         <div class="card-actions">
-          <button class="btn-secondary" onclick="editNotion('${item.term}')">✏️</button>
-          <button class="btn-danger" onclick="deleteNotion('${item.term}')">🗑️</button>
+          <button class="btn-secondary" onclick="window.editNotion('${item.term}')">✏️</button>
+          <button class="btn-danger" onclick="window.deleteNotion('${item.term}')">🗑️</button>
         </div>
       </div>
       <p style="margin-top:0.5rem; color:var(--text-muted);">${item.definition}</p>
@@ -589,19 +550,19 @@ async function renderDictionary() {
   });
 }
 
-async function editNotion(term) {
+window.editNotion = async function(term) {
   const data = await getSubjectData(currentSubject);
-  const item = data.dictionary ? data.dictionary.find(d => d.term.toLowerCase() === term.toLowerCase()) : null;
+  const item = data.dictionary.find(d => d.term.toLowerCase() === term.toLowerCase());
   if (!item) return;
 
   document.getElementById('notion-term-input').value = item.term;
   document.getElementById('notion-def-input').value = item.definition;
-}
+};
 
-async function deleteNotion(term) {
+window.deleteNotion = async function(term) {
   if (!confirm(`Supprimer "${term}" ?`)) return;
   const data = await getSubjectData(currentSubject);
   data.dictionary = data.dictionary.filter(d => d.term.toLowerCase() !== term.toLowerCase());
   await saveSubjectData(currentSubject, data);
   await renderDictionary();
-}
+};
