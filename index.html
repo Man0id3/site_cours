@@ -26,9 +26,13 @@
   <div id="app-container" class="hidden">
     <!-- Navigation principale -->
     <header>
+            <!-- Remplace la div contenant le titre et le bouton de déconnexion par ceci : -->
       <div style="display: flex; justify-content: space-between; align-items: center; max-width: 900px; margin: 0 auto 1rem auto;">
         <h1 style="margin: 0;">Mon Espace d'Apprentissage</h1>
-        <button id="btn-logout" class="btn-danger" style="padding: 6px 14px; font-size: 0.85rem;">Déconnexion</button>
+        <div style="display: flex; gap: 10px;">
+          <button id="btn-theme-toggle" class="btn-secondary" style="padding: 6px 12px; font-size: 0.85rem;">🌙 Mode Sombre</button>
+          <button id="btn-logout" class="btn-danger" style="padding: 6px 14px; font-size: 0.85rem;">Déconnexion</button>
+        </div>
       </div>
       
       <nav id="subject-nav"></nav>
