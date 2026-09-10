@@ -1,3 +1,19 @@
+// --- CONFIGURATION FIREBASE ---
+// Remplace avec tes propres clés récupérées dans la console Firebase :
+const firebaseConfig = {
+  apiKey: "AIzaSyBEXlxtdJOtow7TwR2KiV6NCszorXSFsQ8",
+  authDomain: "site-cours-a9eb4.firebaseapp.com",
+  databaseURL: "https://site-cours-a9eb4-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "site-cours-a9eb4",
+  storageBucket: "site-cours-a9eb4.firebasestorage.app",
+  messagingSenderId: "610542919440",
+  appId: "1:610542919440:web:e5e50daf5bdcca06628f95"
+};
+
+// Initialisation de Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
 let currentSubject = null;
 let editingCourseId = null;
 let editingMethodId = null;
@@ -23,7 +39,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
   await loadSubjectNavigation();
 
-  // Restaure la dernière matière active si elle existe
   const savedSubject = localStorage.getItem('lastActiveSubject');
   if (savedSubject) {
     await selectSubject(savedSubject);
@@ -56,29 +71,40 @@ function setupEventListeners() {
   document.getElementById('btn-add-link-item').addEventListener('click', addLinkToForm);
 }
 
-// --- SAUVEGARDE EN LOCALSTORAGE ---
+// --- SAUVEGARDE & LECTURE FIREBASE ---
 async function getSubjectData(subjectName) {
   if (!subjectName) return { name: '', courses: [], methods: [], dictionary: [] };
-  const rawData = localStorage.getItem(`subject_${subjectName}`);
-  if (rawData) {
-    try {
-      return JSON.parse(rawData);
-    } catch (e) {
-      console.error("Erreur de lecture du localStorage :", e);
+  try {
+    const snapshot = await db.ref(`subjects/${subjectName}`).once('value');
+    const data = snapshot.val();
+    if (data) {
+      return {
+        name: data.name || subjectName,
+        courses: data.courses || [],
+        methods: data.methods || [],
+        dictionary: data.dictionary || []
+      };
     }
+  } catch (err) {
+    console.error("Erreur de lecture Firebase :", err);
   }
   return { name: subjectName, courses: [], methods: [], dictionary: [] };
 }
 
 async function saveSubjectData(subjectName, data) {
   if (!subjectName) return;
-  localStorage.setItem(`subject_${subjectName}`, JSON.stringify(data));
+  try {
+    await db.ref(`subjects/${subjectName}`).set(data);
+  } catch (err) {
+    console.error("Erreur de sauvegarde Firebase :", err);
+    alert("Erreur lors de la sauvegarde sur le serveur.");
+  }
 }
 
 // --- MATIÈRES ---
 async function createSubject() {
   const input = document.getElementById('new-subject-name');
-  const name = input.value.trim().toUpperCase();
+  const name = input.value.trim().toUpperCase().replace(/[.#$\[\]]/g, "_"); // Nettoyage des caractères interdits Firebase
   if (!name) return alert("Entrez un nom de matière.");
 
   const initialData = { name: name, courses: [], methods: [], dictionary: [] };
@@ -93,23 +119,23 @@ async function loadSubjectNavigation() {
   const nav = document.getElementById('subject-nav');
   nav.innerHTML = '';
   
-  // Récupération sécurisée de la liste des matières
-  const subjects = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && key.startsWith('subject_')) {
-      const subName = key.replace('subject_', '');
-      if (subName) subjects.push(subName);
+  try {
+    const snapshot = await db.ref('subjects').once('value');
+    const subjectsData = snapshot.val();
+    
+    if (subjectsData) {
+      const subjects = Object.keys(subjectsData);
+      subjects.sort().forEach(sub => {
+        const btn = document.createElement('button');
+        btn.textContent = sub;
+        if (sub === currentSubject) btn.classList.add('active');
+        btn.onclick = () => selectSubject(sub);
+        nav.appendChild(btn);
+      });
     }
+  } catch (err) {
+    console.error("Erreur lors du chargement des matières :", err);
   }
-
-  subjects.sort().forEach(sub => {
-    const btn = document.createElement('button');
-    btn.textContent = sub;
-    if (sub === currentSubject) btn.classList.add('active');
-    btn.onclick = () => selectSubject(sub);
-    nav.appendChild(btn);
-  });
 }
 
 async function selectSubject(subjectName) {
@@ -218,14 +244,12 @@ async function saveCourse() {
   if (!title || !htmlContent) return alert("Remplissez le titre et le contenu du cours.");
 
   const data = await getSubjectData(currentSubject);
-  if (!data.courses) data.courses = [];
 
   const imageInput = document.getElementById('image-input');
   const pdfInput = document.getElementById('pdf-input');
   const audioInput = document.getElementById('audio-input');
   const videoInput = document.getElementById('video-input');
 
-  // Conversion sécurisée des fichiers joints s'ils existent
   let imageData = (imageInput.files && imageInput.files[0]) ? await fileToBase64(imageInput.files[0]) : null;
   let pdfData = (pdfInput.files && pdfInput.files[0]) ? await fileToBase64(pdfInput.files[0]) : null;
   let pdfName = (pdfInput.files && pdfInput.files[0]) ? pdfInput.files[0].name : null;
@@ -332,7 +356,6 @@ async function saveMethod() {
   if (!title || !htmlContent) return alert("Remplissez le titre et le contenu.");
 
   const data = await getSubjectData(currentSubject);
-  if (!data.methods) data.methods = [];
 
   if (editingMethodId) {
     const method = data.methods.find(m => m.id === editingMethodId);
@@ -481,8 +504,7 @@ async function saveNotion() {
   if (!term || !definition) return alert("Complétez le mot et la définition.");
 
   const data = await getSubjectData(currentSubject);
-  if (!data.dictionary) data.dictionary = [];
-  
+
   const existingIndex = data.dictionary.findIndex(d => d.term.toLowerCase() === term.toLowerCase());
 
   if (existingIndex >= 0) {
@@ -538,7 +560,6 @@ async function editNotion(term) {
 async function deleteNotion(term) {
   if (!confirm(`Supprimer "${term}" ?`)) return;
   const data = await getSubjectData(currentSubject);
-  if (!data.dictionary) return;
   data.dictionary = data.dictionary.filter(d => d.term.toLowerCase() !== term.toLowerCase());
   await saveSubjectData(currentSubject, data);
   await renderDictionary();
