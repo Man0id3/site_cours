@@ -80,7 +80,7 @@ header h1 {
   gap: 8px;
 }
 
-input[type="text"], input[type="url"], textarea {
+input[type="text"], input[type="url"], input[type="password"], input[type="email"], textarea {
   padding: 10px 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
@@ -322,53 +322,6 @@ main {
 .dict-btn.robert { background-color: #0055a5; }
 .dict-btn.larousse { background-color: #e2001a; }
 .dict-btn.wiki { background-color: #333333; }
-
-/* Nettoyage du formulaire de connexion et de l'interface */
-#auth-container input {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  box-sizing: border-box;
-}
-
-/* Grille des fichiers joints */
-.file-inputs-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin: 1.5rem 0;
-  background: #f8fafc;
-  padding: 1rem;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-}
-
-.file-inputs-grid label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #475569;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.file-inputs-grid input[type="file"] {
-  font-size: 0.8rem;
-}
-
-/* Alignement des boutons de saisie de liens */
-.links-input-group {
-  margin: 1.5rem 0;
-}
-
-.links-input-group h4 {
-  margin-bottom: 0.5rem;
-}
-
-.links-input-group input {
-  padding: 0.5rem 0.75rem;
-}
 
 /* Dictionnaire */
 .dico-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
