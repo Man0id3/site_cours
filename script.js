@@ -1,4 +1,3 @@
-// --- CONFIGURATION FIREBASE ---
 const firebaseConfig = {
   apiKey: "AIzaSyBEXlxtdJOtow7TwR2KiV6NCszorXSFsQ8",
   authDomain: "site-cours-a9eb4.firebaseapp.com",
