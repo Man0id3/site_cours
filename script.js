@@ -1,3 +1,4 @@
+// --- CONFIGURATION FIREBASE ---
 const firebaseConfig = {
   apiKey: "AIzaSyBEXlxtdJOtow7TwR2KiV6NCszorXSFsQ8",
   authDomain: "site-cours-a9eb4.firebaseapp.com",
@@ -8,10 +9,10 @@ const firebaseConfig = {
   appId: "1:610542919440:web:e5e50daf5bdcca06628f95"
 };
 
-// Initialisation de Firebase et de l'Authentification
+// Initialisation de Firebase
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const auth = firebase.auth(); // <-- NOUVEAU
+const auth = firebase.auth();
 
 let currentSubject = null;
 let editingCourseId = null;
@@ -33,38 +34,43 @@ function execCmd(command) {
   document.execCommand(command, false, null); 
 }
 
-// --- INITIALISATION & CONNEXION ---
+// --- INITIALISATION & AUTHENTIFICATION ---
 document.addEventListener('DOMContentLoaded', () => {
   setupEventListeners();
 
-  // Écouteur pour la soumission du formulaire de connexion
-  document.getElementById('login-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('auth-email').value;
-    const password = document.getElementById('auth-password').value;
-    const errorElement = document.getElementById('auth-error');
+  // Connexion
+  const loginForm = document.getElementById('login-form');
+  if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('auth-email').value.trim();
+      const password = document.getElementById('auth-password').value.trim();
+      const errorElement = document.getElementById('auth-error');
 
-    try {
-      await auth.signInWithEmailAndPassword(email, password);
-      errorElement.style.display = 'none';
-    } catch (error) {
-      errorElement.textContent = "Erreur de connexion : " + error.message;
-      errorElement.style.display = 'block';
-    }
-  });
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+        errorElement.style.display = 'none';
+      } catch (error) {
+        errorElement.textContent = "Erreur de connexion : " + error.message;
+        errorElement.style.display = 'block';
+      }
+    });
+  }
 
-  // Bouton de déconnexion
-  document.getElementById('btn-logout').addEventListener('click', () => {
-    auth.signOut();
-  });
+  // Déconnexion
+  const btnLogout = document.getElementById('btn-logout');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', () => {
+      auth.signOut();
+    });
+  }
 
-  // Vérifie automatiquement si tu es connecté ou non
+  // Écouteur d'état de connexion
   auth.onAuthStateChanged(async (user) => {
     const authContainer = document.getElementById('auth-container');
     const appContainer = document.getElementById('app-container');
 
     if (user) {
-      // Connecté : on masque le formulaire et on affiche l'application
       authContainer.classList.add('hidden');
       appContainer.classList.remove('hidden');
 
@@ -74,14 +80,11 @@ document.addEventListener('DOMContentLoaded', () => {
         await selectSubject(savedSubject);
       }
     } else {
-      // Déconnecté : on masque l'application et on affiche le formulaire
       authContainer.classList.remove('hidden');
       appContainer.classList.add('hidden');
     }
   });
 });
-
-// --- Reste du code (setupEventListeners, getSubjectData, etc.) inchangé ci-dessous ---
 
 function setupEventListeners() {
   document.getElementById('add-subject-btn').addEventListener('click', createSubject);
@@ -109,7 +112,7 @@ function setupEventListeners() {
   document.getElementById('btn-add-link-item').addEventListener('click', addLinkToForm);
 }
 
-// --- SAUVEGARDE & LECTURE FIREBASE ---
+// --- BASE DE DONNÉES FIREBASE ---
 async function getSubjectData(subjectName) {
   if (!subjectName) return { name: '', courses: [], methods: [], dictionary: [] };
   try {
@@ -142,7 +145,7 @@ async function saveSubjectData(subjectName, data) {
 // --- MATIÈRES ---
 async function createSubject() {
   const input = document.getElementById('new-subject-name');
-  const name = input.value.trim().toUpperCase().replace(/[.#$\[\]]/g, "_"); // Nettoyage des caractères interdits Firebase
+  const name = input.value.trim().toUpperCase().replace(/[.#$\[\]]/g, "_");
   if (!name) return alert("Entrez un nom de matière.");
 
   const initialData = { name: name, courses: [], methods: [], dictionary: [] };
