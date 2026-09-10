@@ -11,6 +11,23 @@
 </head>
 <body>
 
+    <!-- ÉCRAN DE CONNEXION -->
+  <div id="auth-container" style="max-width: 400px; margin: 40px auto; padding: 20px; border: 1px solid #ccc; border-radius: 8px;">
+    <h2>Connexion</h2>
+    <form id="login-form">
+      <input type="email" id="auth-email" placeholder="E-mail" required style="width: 100%; margin-bottom: 10px; padding: 8px;">
+      <input type="password" id="auth-password" placeholder="Mot de passe" required style="width: 100%; margin-bottom: 10px; padding: 8px;">
+      <button type="submit" class="btn-primary" style="width: 100%;">Se connecter</button>
+    </form>
+    <p id="auth-error" style="color: red; margin-top: 10px; display: none;"></p>
+  </div>
+  
+  <!-- CONTENU DU SITE (Masqué par défaut) -->
+  <div id="app-container" class="hidden">
+    <button id="btn-logout" class="btn-danger" style="float: right; margin: 10px;">Déconnexion</button>
+    <!-- Tout le reste de ton HTML existant va ici -->
+  </div>
+
   <!-- Navigation principale -->
   <header>
     <h1>Mon Espace d'Apprentissage</h1>
