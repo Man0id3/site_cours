@@ -326,3 +326,45 @@ main {
 /* Dictionnaire */
 .dico-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
 .dico-item { background: var(--surface); padding: 1.25rem; border-radius: var(--radius-md); border: 1px solid var(--border); }
+
+/* --- VARIABLES ET STYLES POUR LE MODE SOMBRE --- */
+body.dark-theme {
+  --bg-main: #0f172a;
+  --surface: #1e293b;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --border: #334155;
+  --primary-light: #1e3a8a;
+}
+
+/* Ajustements visuels pour le mode sombre */
+body.dark-theme header {
+  background: rgba(30, 41, 59, 0.9);
+}
+
+body.dark-theme #view-toggle {
+  background: #334155;
+}
+
+body.dark-theme .editor-toolbar,
+body.dark-theme .file-upload-section,
+body.dark-theme .links-section {
+  background: #0f172a;
+}
+
+body.dark-theme .links-list-styled li {
+  background: #1e293b;
+}
+
+body.dark-theme input,
+body.dark-theme textarea,
+body.dark-theme .rich-editor {
+  background-color: #0f172a;
+  color: var(--text-main);
+  border-color: var(--border);
+}
+
+body.dark-theme .editor-toolbar button {
+  background: var(--surface);
+  color: var(--text-main);
+}
