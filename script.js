@@ -599,5 +599,34 @@ function toggleTheme() {
   }
 }
 
+// --- INSERTION D'UNE NOTION DU DICTIONNAIRE DANS L'ÉDITEUR ---
+window.insertNotionToEditor = async function() {
+  if (!currentSubject) return alert("Sélectionnez d'abord une matière.");
+
+  // Récupération des notions de la matière
+  const data = await getSubjectData(currentSubject);
+  if (!data.dictionary || data.dictionary.length === 0) {
+    return alert("Aucune notion enregistrée dans le dictionnaire de cette matière.");
+  }
+
+  // Création de la liste des mots disponibles
+  const termsList = data.dictionary.map(d => d.term).join("\n- ");
+  const selectedTerm = prompt(`Quelle notion souhaitez-vous insérer ?\n\nNotions disponibles :\n- ${termsList}`);
+
+  if (!selectedTerm) return;
+
+  // Vérification de l'existence du terme
+  const notionExists = data.dictionary.some(d => d.term.toLowerCase() === selectedTerm.trim().toLowerCase());
+
+  if (!notionExists) {
+    return alert("Cette notion n'existe pas dans le dictionnaire.");
+  }
+
+  // Insertion HTML dans l'éditeur à l'emplacement du curseur
+  const termToInsert = selectedTerm.trim();
+  const htmlToInsert = `<span class="wiki-link" onclick="window.openNotionModal('${termToInsert}')">${termToInsert}</span>&nbsp;`;
+
+  document.execCommand('insertHTML', false, htmlToInsert);
+};
 // Appliquer le thème dès le chargement du script
 initTheme();
